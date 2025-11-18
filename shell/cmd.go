@@ -28,13 +28,13 @@ type Console struct {
 func (c *Cmd) Format(state fmt.State, verb rune) {
 	switch verb {
 	case 's':
-		fmt.Fprint(state, c.String())
+		_, _ = fmt.Fprint(state, c.String())
 	case 'v':
-		fmt.Fprint(state, "`")
-		fmt.Fprint(state, c.String())
-		fmt.Fprintf(state, "`")
+		_, _ = fmt.Fprint(state, "`")
+		_, _ = fmt.Fprint(state, c.String())
+		_, _ = fmt.Fprintf(state, "`")
 		if c.Dir != "" {
-			fmt.Fprintf(state, " in %s", c.Dir)
+			_, _ = fmt.Fprintf(state, " in %s", c.Dir)
 		}
 	}
 }

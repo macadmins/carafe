@@ -16,7 +16,8 @@ import (
 func TestCapturingExecutor_Run_CaptureTo(t *testing.T) {
 	captured := []*shell.Cmd{}
 	cmd := shell.NewCommand("command-that-does-not-exist")
-	NewExecutor(CaptureTo(&captured)).Run(cmd)
+	err := NewExecutor(CaptureTo(&captured)).Run(cmd)
+	require.NoError(t, err)
 	assert.Len(t, captured, 1)
 	assert.Equal(t, cmd, captured[0])
 }

@@ -72,28 +72,28 @@ func TestPrependingWriter_Write(t *testing.T) {
 			prefix:         "[TEST] ",
 			input:          "  hello world  \n",
 			expectedOutput: "[TEST] hello world\n",
-			expectedN:      17,
+			expectedN:      16,
 		},
 		{
 			name:           "carriage return converted to newline",
 			prefix:         "[TEST] ",
 			input:          "line1\rline2\r",
 			expectedOutput: "[TEST] line1\n[TEST] line2\n",
-			expectedN:      13,
+			expectedN:      12,
 		},
 		{
 			name:           "mixed newlines and carriage returns",
 			prefix:         "[LOG] ",
 			input:          "start\r\nmiddle\nend\r",
 			expectedOutput: "[LOG] start\n[LOG] middle\n[LOG] end\n",
-			expectedN:      17,
+			expectedN:      18,
 		},
 		{
 			name:           "blank lines skipped",
 			prefix:         "[TEST] ",
 			input:          "line1\n\nline2\n",
 			expectedOutput: "[TEST] line1\n[TEST] line2\n",
-			expectedN:      14,
+			expectedN:      13,
 		},
 	}
 

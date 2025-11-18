@@ -54,7 +54,7 @@ func (c *capturingExecutor) Run(cmd *shell.Cmd) error {
 
 	for regex, stdout := range c.mappedStdouts {
 		if regex.MatchString(cmd.String()) {
-			fmt.Fprint(cmd.Stdout, stdout)
+			_, _ = fmt.Fprint(cmd.Stdout, stdout)
 			return c.maybeReturnError()
 		}
 	}
@@ -65,7 +65,7 @@ func (c *capturingExecutor) Run(cmd *shell.Cmd) error {
 		}
 
 		if cmd.Stdout != nil {
-			fmt.Fprintf(cmd.Stdout, "%s", c.stdout[c.idx])
+			_, _ = fmt.Fprintf(cmd.Stdout, "%s", c.stdout[c.idx])
 		}
 	}
 
@@ -75,7 +75,7 @@ func (c *capturingExecutor) Run(cmd *shell.Cmd) error {
 
 	for regex, stderr := range c.mappedStderrs {
 		if regex.MatchString(cmd.String()) {
-			fmt.Fprint(cmd.Stderr, stderr)
+			_, _ = fmt.Fprint(cmd.Stderr, stderr)
 			return c.maybeReturnError()
 		}
 	}
@@ -86,7 +86,7 @@ func (c *capturingExecutor) Run(cmd *shell.Cmd) error {
 		}
 
 		if cmd.Stderr != nil {
-			fmt.Fprintf(cmd.Stderr, "%s", c.stderr[c.idx])
+			_, _ = fmt.Fprintf(cmd.Stderr, "%s", c.stderr[c.idx])
 		}
 	}
 
