@@ -59,4 +59,4 @@ jobs:
           body: |
             # What's Changed
             ${{ steps.changelog.outputs.changelog }}
-          files: ${{github.workspace}}/*.zip
+          files: ${{github.workspace}}/*.pkg
