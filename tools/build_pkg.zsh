@@ -65,7 +65,7 @@ echo "Creating the package"
 
 # notarize the package
 echo "Notarizing the package with ${XCODE_NOTARY_PATH}"
-$XCODE_NOTARY_PATH store-credentials --apple-id "opensource@macadmins.io" --team-id "T4SK8ZXCXG" --password "$2" defaultbrowser
+$XCODE_NOTARY_PATH store-credentials --apple-id "opensource@macadmins.io" --team-id "T4SK8ZXCXG" --password "$2" carafe
 
 # Notarize carafe package
 $XCODE_NOTARY_PATH submit "output/carafe.pkg" --keychain-profile "carafe" --wait
