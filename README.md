@@ -46,6 +46,8 @@ These commands support the same options as the `brew` command. The commands are:
 - `untap`
 - `upgrade`
 
-## Notes
+## Occasionally asked questions
 
-Carafe was designed and tested for 1:1 deployments. No testing has been done for shared deployments like instructional labs, and it's possible there will be issues in those scenarios.
+- **Does Carafe install Homebrew if it is not already installed?**: No, Carafe assumes that Homebrew is already installed on the system. We recommend using the [official package from Github](https://github.com/Homebrew/brew/releases).
+- **Does Carafe prevent the use of Homebrew outside of Carafe?**: No, Carafe does not restrict the use of Homebrew. If you need to prevent users from using Homebrew directly, or prevent the installation of unauthorized formulae, consider using tools like [Santa](https://github.com/northpolesec/santa).
+- **Will Carafe work in a shared deployment, such as an instructional lab?**: Carafe has not been tested in shared deployments, and it is possible there will be issues in those scenarios.
