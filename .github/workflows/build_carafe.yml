@@ -1,4 +1,6 @@
 name: Build Carafe (Manual)
+permissions:
+  contents: write
 
 on: [workflow_dispatch]
 

@@ -1,4 +1,6 @@
 name: Run linting
+permissions:
+  contents: read
 on:
   push:
     branches:
