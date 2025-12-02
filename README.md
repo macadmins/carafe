@@ -45,3 +45,7 @@ These commands support the same options as the `brew` command. The commands are:
 - `uninstall`
 - `untap`
 - `upgrade`
+
+## Notes
+
+Carafe was designed and tested for 1:1 deployments. No testing has been done for shared deployments like instructional labs, and it's possible there will be issues in those scenarios.
