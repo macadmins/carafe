@@ -1,4 +1,6 @@
 name: Test Coverage
+permissions:
+  contents: read
 on: [pull_request]
 jobs:
   coverage:
