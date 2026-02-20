@@ -15,7 +15,7 @@ In addition to the basic Homebrew functionality, Carafe provides a few additiona
 You can specify a minimum version of a formula that should be installed. If the installed version is lower than the specified minimum version, Carafe will automatically upgrade it to the latest version.
 
 ```bash
-/opt/macadmins/bin/carafe check <formula> --min-version=<version>
+/opt/macadmins/bin/carafe update <formula> --min-version=<version>
 ```
 
 ## Check
