@@ -421,6 +421,46 @@ func TestInstalledVersion(t *testing.T) {
 	}
 }
 
+func TestStripBrewRevision(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no revision",
+			input:    "2.52.0",
+			expected: "2.52.0",
+		},
+		{
+			name:     "single digit revision",
+			input:    "2.52.0_1",
+			expected: "2.52.0",
+		},
+		{
+			name:     "multi digit revision",
+			input:    "2.52.0_12",
+			expected: "2.52.0",
+		},
+		{
+			name:     "long version with revision",
+			input:    "2026.01.12.00_1",
+			expected: "2026.01.12.00",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, stripBrewRevision(tt.input))
+		})
+	}
+}
+
 func TestVersionMeetsOrExceedsMinimum(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -445,6 +485,24 @@ func TestVersionMeetsOrExceedsMinimum(t *testing.T) {
 			item:           "htop",
 			minimumVersion: "1.2.4",
 			stdout:         `[{ "installed": [{ "version": "1.2.3" }] }]`,
+			expected:       false,
+			runError:       nil,
+			expectError:    false,
+		},
+		{
+			name:           "installed version with brew revision meets minimum",
+			item:           "git",
+			minimumVersion: "2.45.2",
+			stdout:         `[{ "installed": [{ "version": "2.52.0_1" }] }]`,
+			expected:       true,
+			runError:       nil,
+			expectError:    false,
+		},
+		{
+			name:           "installed version with brew revision does not meet minimum",
+			item:           "git",
+			minimumVersion: "2.53.0",
+			stdout:         `[{ "installed": [{ "version": "2.52.0_1" }] }]`,
 			expected:       false,
 			runError:       nil,
 			expectError:    false,

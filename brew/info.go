@@ -3,11 +3,20 @@ package brew
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/go-version"
 
 	"github.com/macadmins/carafe/exec"
 )
+
+var brewRevisionRe = regexp.MustCompile(`_\d+$`)
+
+// stripBrewRevision removes the Homebrew revision suffix (e.g. "_1") from a version string.
+// Homebrew appends _N to indicate a package revision, but this is not valid semver.
+func stripBrewRevision(v string) string {
+	return brewRevisionRe.ReplaceAllString(v, "")
+}
 
 type HomebrewFormula struct {
 	Name      string      `json:"name"`
@@ -108,14 +117,14 @@ func VersionMeetsOrExceedsMinimum(c exec.CarafeConfig, item, minimumVersion stri
 		return true, nil
 	}
 
-	parsedInstalledVersion, err := version.NewVersion(installedVersion)
+	parsedInstalledVersion, err := version.NewVersion(stripBrewRevision(installedVersion))
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("failed to parse installed version %q for item %q: %w", installedVersion, item, err)
 	}
 
 	parsedMinimumVersion, err := version.NewVersion(minimumVersion)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("failed to parse minimum version %q for item %q: %w", minimumVersion, item, err)
 	}
 
 	return parsedInstalledVersion.GreaterThanOrEqual(parsedMinimumVersion), nil
