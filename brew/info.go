@@ -98,8 +98,13 @@ func VersionMeetsOrExceedsMinimum(c exec.CarafeConfig, item, minimumVersion stri
 	if err != nil { // couldn't get the state, return true to be safe
 		return true, err
 	}
+	return meetsMinimumFromOutput(out, item, minimumVersion)
+}
 
-	isInstalled, err := installed(out)
+// meetsMinimumFromOutput performs the version comparison using already-fetched
+// brew info JSON output, avoiding a second brew call.
+func meetsMinimumFromOutput(output, item, minimumVersion string) (bool, error) {
+	isInstalled, err := installed(output)
 	if err != nil {
 		return true, err
 	}
@@ -108,7 +113,7 @@ func VersionMeetsOrExceedsMinimum(c exec.CarafeConfig, item, minimumVersion stri
 		return true, nil // not installed, so it meets the minimum
 	}
 
-	installedVersion, err := getVersion(out)
+	installedVersion, err := getVersion(output)
 	if err != nil {
 		return true, err
 	}

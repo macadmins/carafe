@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/macadmins/carafe/brew"
 	"github.com/macadmins/carafe/exec"
@@ -12,6 +13,7 @@ import (
 )
 
 var formulaRe = regexp.MustCompile(`^[A-Za-z0-9+@._-]{1,128}$`) //nolint:gochecknoglobals
+var version = "dev"                                               //nolint:gochecknoglobals
 
 func validateFormulaArg(arg string) error {
 	if !formulaRe.MatchString(arg) {
@@ -27,16 +29,10 @@ func completionCommand() *cobra.Command {
 	}
 }
 
-func main() {
-	var rootCmd = &cobra.Command{
+func buildRootCmd(c exec.CarafeConfig, version string) *cobra.Command {
+	rootCmd := &cobra.Command{
 		Use:   "carafe",
 		Short: "A CLI tool for managing homebrew packages",
-	}
-
-	c, err := exec.NewConfig()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
 	}
 
 	var cleanupCmd = &cobra.Command{
@@ -60,7 +56,6 @@ func main() {
 				return err
 			}
 			return brew.Install(c, args[0])
-
 		},
 	}
 
@@ -119,8 +114,6 @@ func main() {
 			if err := validateFormulaArg(args[0]); err != nil {
 				return err
 			}
-			// This would require additional logic to check the version and compare it with minVersion
-			// For simplicity, we are assuming the package is updated directly
 			if minVersion != "" {
 				return brew.EnsureMinimumVersion(c, args[0], minVersion)
 			}
@@ -132,6 +125,8 @@ func main() {
 	// check command
 	var munkiInstallCheck bool
 	var skipNotInstalled bool
+	var noCache bool
+	var cacheTTL time.Duration
 	var checkCmd = &cobra.Command{
 		Use:   "check [package]",
 		Short: "Check if the package is installed, and optionally at or above a specific version. Use --min-version to specify a minimum version. Use --munki-installcheck to reverse the exit codes.", //nolint:lll
@@ -140,7 +135,10 @@ func main() {
 			if err := validateFormulaArg(args[0]); err != nil {
 				return err
 			}
-			exitCode, err := brew.Check(c, args[0], minVersion, munkiInstallCheck, skipNotInstalled)
+			if noCache {
+				cacheTTL = 0
+			}
+			exitCode, err := brew.Check(c, args[0], minVersion, munkiInstallCheck, skipNotInstalled, cacheTTL)
 			if err != nil {
 				return err
 			}
@@ -161,13 +159,24 @@ func main() {
 		false,
 		"Exits with success if the package is not installed. Must be used with --min-version flag. For use when checking to upgrade for security reasons", //nolint:lll
 	)
+	checkCmd.Flags().BoolVar(
+		&noCache,
+		"no-cache",
+		false,
+		"Disable the brew info cache and call brew directly for each check",
+	)
+	checkCmd.Flags().DurationVar(
+		&cacheTTL,
+		"cache-ttl",
+		60*time.Second,
+		"How long the brew info cache is considered valid (e.g. 30s, 2m)",
+	)
 
-	var Version = "dev" // Set at build time using -ldflags
 	var versionCmd = &cobra.Command{
 		Use:   "version",
 		Short: "Print the version of the carafe CLI tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(Version)
+			fmt.Println(version)
 			os.Exit(0)
 		},
 	}
@@ -186,7 +195,17 @@ func main() {
 		checkCmd,
 		versionCmd,
 	)
-	if err := rootCmd.Execute(); err != nil {
+	return rootCmd
+}
+
+func main() {
+	c, err := exec.NewConfig()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	if err := buildRootCmd(c, version).Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
