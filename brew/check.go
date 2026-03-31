@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/macadmins/carafe/exec"
 )
@@ -15,7 +16,9 @@ type CheckResult struct {
 	Name                string `json:"name"`
 }
 
-func Check(c exec.CarafeConfig, item, minVersion string, munkiInstallsCheck, skipNotInstalled bool) (int, error) {
+// Check verifies whether item is installed and optionally meets minVersion.
+// cacheTTL controls how long the brew info cache is valid; pass 0 to disable caching.
+func Check(c exec.CarafeConfig, item, minVersion string, munkiInstallsCheck, skipNotInstalled bool, cacheTTL time.Duration) (int, error) {
 	pass := 0
 	fail := 1
 
@@ -40,7 +43,7 @@ func Check(c exec.CarafeConfig, item, minVersion string, munkiInstallsCheck, ski
 		}
 	}
 
-	output, err := infoOutput(c, item)
+	output, err := getInfoOutput(c, item, cacheTTL)
 	if err != nil {
 		return fail, err
 	}
@@ -72,8 +75,8 @@ func Check(c exec.CarafeConfig, item, minVersion string, munkiInstallsCheck, ski
 	result.Version = version
 
 	if minVersion != "" {
-		// does it meet the minimum version?
-		meetsMinimum, err := VersionMeetsOrExceedsMinimum(c, item, minVersion)
+		// Use the already-fetched output to avoid a second brew call.
+		meetsMinimum, err := meetsMinimumFromOutput(output, item, minVersion)
 		if err != nil {
 			return pass, err
 		}
@@ -88,6 +91,14 @@ func Check(c exec.CarafeConfig, item, minVersion string, munkiInstallsCheck, ski
 		}
 	}
 	return pass, printResultJSON(result)
+}
+
+// getInfoOutput fetches brew info JSON for item, using the disk cache when cacheTTL > 0.
+func getInfoOutput(c exec.CarafeConfig, item string, cacheTTL time.Duration) (string, error) {
+	if cacheTTL > 0 {
+		return infoOutputCached(c, item, cachePath(c.GetBrewPath()), cacheTTL)
+	}
+	return infoOutput(c, item)
 }
 
 func printResultJSON(result CheckResult) error {

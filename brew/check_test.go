@@ -126,8 +126,8 @@ func TestCheck(t *testing.T) {
 				},
 			}
 
-			// Call the function under test
-			result, err := Check(c, tt.item, tt.minVersion, tt.munkiInstallsCheck, tt.skipNotInstalled)
+			// Call the function under test (cacheTTL=0 disables caching)
+			result, err := Check(c, tt.item, tt.minVersion, tt.munkiInstallsCheck, tt.skipNotInstalled, 0)
 
 			// Assert the error
 			if tt.expectedError {
