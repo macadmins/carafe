@@ -13,6 +13,7 @@ import (
 )
 
 var formulaRe = regexp.MustCompile(`^[A-Za-z0-9+@._-]{1,128}$`) //nolint:gochecknoglobals
+var version = "dev"                                               //nolint:gochecknoglobals
 
 func validateFormulaArg(arg string) error {
 	if !formulaRe.MatchString(arg) {
@@ -28,16 +29,10 @@ func completionCommand() *cobra.Command {
 	}
 }
 
-func main() {
-	var rootCmd = &cobra.Command{
+func buildRootCmd(c exec.CarafeConfig, version string) *cobra.Command {
+	rootCmd := &cobra.Command{
 		Use:   "carafe",
 		Short: "A CLI tool for managing homebrew packages",
-	}
-
-	c, err := exec.NewConfig()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
 	}
 
 	var cleanupCmd = &cobra.Command{
@@ -61,7 +56,6 @@ func main() {
 				return err
 			}
 			return brew.Install(c, args[0])
-
 		},
 	}
 
@@ -120,8 +114,6 @@ func main() {
 			if err := validateFormulaArg(args[0]); err != nil {
 				return err
 			}
-			// This would require additional logic to check the version and compare it with minVersion
-			// For simplicity, we are assuming the package is updated directly
 			if minVersion != "" {
 				return brew.EnsureMinimumVersion(c, args[0], minVersion)
 			}
@@ -180,12 +172,11 @@ func main() {
 		"How long the brew info cache is considered valid (e.g. 30s, 2m)",
 	)
 
-	var Version = "dev" // Set at build time using -ldflags
 	var versionCmd = &cobra.Command{
 		Use:   "version",
 		Short: "Print the version of the carafe CLI tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(Version)
+			fmt.Println(version)
 			os.Exit(0)
 		},
 	}
@@ -204,7 +195,17 @@ func main() {
 		checkCmd,
 		versionCmd,
 	)
-	if err := rootCmd.Execute(); err != nil {
+	return rootCmd
+}
+
+func main() {
+	c, err := exec.NewConfig()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	if err := buildRootCmd(c, version).Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
