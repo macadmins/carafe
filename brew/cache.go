@@ -4,24 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/macadmins/carafe/exec"
 )
 
+const (
+	// cacheDir is owned by root (mode 0700) so non-root users cannot read,
+	// write, or pre-create files inside it, preventing symlink/injection attacks.
+	cacheDir        = "/var/root/.carafe"
+	cacheFileArm64  = cacheDir + "/brew_info_cache_arm64.json"
+	cacheFileX86_64 = cacheDir + "/brew_info_cache_x86_64.json"
+)
+
 // cachePath returns the cache file path for the given brew executable path.
-// Different paths are used for arm64 and x86_64 to avoid collisions.
 func cachePath(brewPath string) string {
 	if brewPath == "/opt/homebrew/bin/brew" {
-		return "/tmp/carafe_brew_info_cache_arm64.json"
+		return cacheFileArm64
 	}
-	return "/tmp/carafe_brew_info_cache_x86_64.json"
+	return cacheFileX86_64
 }
 
 // infoOutputCached is like infoOutput but uses a filesystem cache of
 // `brew info --json --installed` to avoid calling brew once per formula.
 // The cache at cacheFile is refreshed when it is older than ttl.
 // On any cache error it falls back to a direct brew call.
+// If the formula is not present in the installed cache it falls back to a
+// direct brew call rather than synthesising a "not installed" response, so
+// that typos and unresolved aliases are still caught by brew.
 func infoOutputCached(c exec.CarafeConfig, item, cacheFile string, ttl time.Duration) (string, error) {
 	formulas, err := loadOrRefreshCache(c, cacheFile, ttl)
 	if err != nil {
@@ -38,12 +49,10 @@ func infoOutputCached(c exec.CarafeConfig, item, cacheFile string, ttl time.Dura
 		}
 	}
 
-	// Not found in the installed list – formula is not installed.
-	b, jsonErr := json.Marshal([]HomebrewFormula{{Name: item, Installed: []Installed{}}})
-	if jsonErr != nil {
-		return infoOutput(c, item)
-	}
-	return string(b), nil
+	// Formula not found in the installed list. Fall back to a direct brew call
+	// so that typos or aliases are handled correctly (brew will error on an
+	// unknown name rather than silently reporting it as not-installed).
+	return infoOutput(c, item)
 }
 
 // loadOrRefreshCache returns the list of installed Homebrew formulas, reading
@@ -71,8 +80,11 @@ func loadOrRefreshCache(c exec.CarafeConfig, cacheFile string, ttl time.Duration
 		return nil, fmt.Errorf("parse brew info output: %w", err)
 	}
 
-	// Best-effort write; ignore errors so a read-only /tmp never breaks the check.
-	_ = os.WriteFile(cacheFile, []byte(out), 0600)
+	// Best-effort write; ignore errors so that a missing or unwritable cache
+	// directory never breaks the check — we just skip caching that run.
+	if mkErr := os.MkdirAll(filepath.Dir(cacheFile), 0700); mkErr == nil {
+		_ = os.WriteFile(cacheFile, []byte(out), 0600)
+	}
 
 	return formulas, nil
 }

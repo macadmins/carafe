@@ -26,6 +26,23 @@ Carafe can check whether a formula is installed and whether it meets a minimum v
 /opt/macadmins/bin/carafe check <formula> [--min-version=<version>] [--skip-not-installed]
 ```
 
+### Caching
+
+When running many `check` commands in quick succession (e.g. from multiple Munki `installcheck_script` entries), Carafe caches the output of `brew info --json --installed` on disk for 60 seconds by default. This means only the first `check` call invokes Homebrew; all subsequent calls within the TTL window are served from the cache, significantly reducing the time for a full Munki check run.
+
+The cache is stored at `/var/root/.carafe/brew_info_cache_arm64.json` (Apple Silicon) or `/var/root/.carafe/brew_info_cache_x86_64.json` (Intel). The directory is created with mode `0700` so only root can read or write cache files, preventing symlink and injection attacks.
+
+To disable caching:
+```bash
+/opt/macadmins/bin/carafe check <formula> --no-cache
+```
+
+To use a custom cache TTL:
+```bash
+/opt/macadmins/bin/carafe check <formula> --cache-ttl=30s
+/opt/macadmins/bin/carafe check <formula> --cache-ttl=2m
+```
+
 ### Munki-specific exit codes
 
 Munki expects an exit code of 0 to indicate that installation is required, and 1 to indicate that no action is needed when using `installcheck_script`. With `--munki-installcheck`, `carafe check` exits 0 if the formula is not installed or fails the `--min-version` check, and 1 if it is installed and meets the requirement.

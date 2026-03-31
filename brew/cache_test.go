@@ -120,24 +120,69 @@ func TestInfoOutputCached_FormulaFound(t *testing.T) {
 func TestInfoOutputCached_FormulaNotInstalled(t *testing.T) {
 	cacheFile := filepath.Join(t.TempDir(), "cache.json")
 
-	// Cache has no entries for wget
+	// Cache has no entry for wget; the function should fall back to a direct
+	// brew call rather than synthesising a "not installed" response.
 	cachedFormulas := []HomebrewFormula{{Name: "htop", Installed: []Installed{{Version: "3.3.0"}}}}
 	data, _ := json.Marshal(cachedFormulas)
 	require.NoError(t, os.WriteFile(cacheFile, data, 0600))
 
-	c := newTestConfig()
+	// The fallback brew call returns the not-installed JSON fixture.
+	c := newTestConfig(TestInfoNotInstalledOutput)
 
 	out, err := infoOutputCached(c, "wget", cacheFile, 60*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, TestInfoNotInstalledOutput, out)
+}
+
+func TestLoadOrRefreshCache_CorruptedCacheFile(t *testing.T) {
+	cacheFile := filepath.Join(t.TempDir(), "cache.json")
+
+	// Write corrupt JSON
+	require.NoError(t, os.WriteFile(cacheFile, []byte("not valid json {{{"), 0600))
+
+	c := newTestConfig(TestInfoAllOutput)
+
+	// Should refresh rather than fail
+	formulas, err := loadOrRefreshCache(c, cacheFile, 60*time.Second)
+	require.NoError(t, err)
+	assert.NotEmpty(t, formulas)
+}
+
+func TestGetInfoOutput_NoCaching(t *testing.T) {
+	c := newTestConfig(TestInfoInstalledOutput)
+	out, err := getInfoOutput(c, "htop", 0)
+	require.NoError(t, err)
+	assert.Equal(t, TestInfoInstalledOutput, out)
+}
+
+func TestGetInfoOutput_NegativeTTL(t *testing.T) {
+	// Negative TTL should behave like 0 (no cache)
+	c := newTestConfig(TestInfoInstalledOutput)
+	out, err := getInfoOutput(c, "htop", -1*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, TestInfoInstalledOutput, out)
+}
+
+func TestGetInfoOutput_WithCache(t *testing.T) {
+	cacheFile := filepath.Join(t.TempDir(), "cache.json")
+
+	cachedFormulas := []HomebrewFormula{{Name: "htop", Installed: []Installed{{Version: "3.3.0"}}}}
+	data, _ := json.Marshal(cachedFormulas)
+	require.NoError(t, os.WriteFile(cacheFile, data, 0600))
+
+	// Redirect the cache by using infoOutputCached directly (getInfoOutput uses the real cache path,
+	// so we test it via infoOutputCached with a custom path here)
+	c := newTestConfig()
+	out, err := infoOutputCached(c, "htop", cacheFile, 60*time.Second)
 	require.NoError(t, err)
 
 	var result []HomebrewFormula
 	require.NoError(t, json.Unmarshal([]byte(out), &result))
-	require.Len(t, result, 1)
-	assert.Equal(t, "wget", result[0].Name)
-	assert.Empty(t, result[0].Installed)
+	assert.Equal(t, "htop", result[0].Name)
+	assert.Equal(t, "3.3.0", result[0].Installed[0].Version)
 }
 
 func TestCachePath(t *testing.T) {
-	assert.Equal(t, "/tmp/carafe_brew_info_cache_arm64.json", cachePath("/opt/homebrew/bin/brew"))
-	assert.Equal(t, "/tmp/carafe_brew_info_cache_x86_64.json", cachePath("/usr/local/bin/brew"))
+	assert.Equal(t, cacheFileArm64, cachePath("/opt/homebrew/bin/brew"))
+	assert.Equal(t, cacheFileX86_64, cachePath("/usr/local/bin/brew"))
 }

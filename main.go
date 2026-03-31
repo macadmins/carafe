@@ -143,11 +143,10 @@ func main() {
 			if err := validateFormulaArg(args[0]); err != nil {
 				return err
 			}
-			ttl := cacheTTL
 			if noCache {
-				ttl = 0
+				cacheTTL = 0
 			}
-			exitCode, err := brew.Check(c, args[0], minVersion, munkiInstallCheck, skipNotInstalled, ttl)
+			exitCode, err := brew.Check(c, args[0], minVersion, munkiInstallCheck, skipNotInstalled, cacheTTL)
 			if err != nil {
 				return err
 			}
