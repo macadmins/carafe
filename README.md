@@ -63,6 +63,40 @@ These commands support the same options as the `brew` command. The commands are:
 - `untap`
 - `upgrade`
 
+## Homebrew inventory
+
+Carafe can write a normalized inventory of installed Homebrew formulae for fleet collection with osquery or other tooling:
+
+```bash
+/opt/macadmins/bin/carafe inventory homebrew
+/opt/macadmins/bin/carafe inventory homebrew --output=/path/to/homebrew_formulae.json
+```
+
+By default this writes `/Library/Application Support/MacAdmins/Carafe/homebrew_formulae.json`.
+
+## Vulnerability pkginfo generation
+
+Carafe can generate Munki `nopkg` pkginfos centrally from Carafe inventory JSON and an explicit Homebrew-to-OSV mapping file:
+
+```bash
+carafe vulnerabilities munki-pkginfos \
+  --inventory=/path/to/homebrew_formulae.json \
+  --mapping=/path/to/homebrew_osv_mappings.json \
+  --output-dir=/path/to/pkginfos \
+  --catalog=testing
+```
+
+The mapping file is JSON keyed by Homebrew formula name:
+
+```json
+{
+  "example-formula": {
+    "ecosystem": "PyPI",
+    "name": "example-package"
+  }
+}
+```
+
 ## Occasionally asked questions
 
 - **Does Carafe install Homebrew if it is not already installed?**: No, Carafe assumes that Homebrew is already installed on the system. We recommend using the [official package from Github](https://github.com/Homebrew/brew/releases).
