@@ -63,6 +63,10 @@ These commands support the same options as the `brew` command. The commands are:
 - `untap`
 - `upgrade`
 
+### Tap-qualified formula names
+
+Commands that take a formula accept either a bare name (`openssl@3`) or a tap-qualified name (`homebrew/core/openssl@3`). Use a tap-qualified name when more than one tap provides a formula with the same name and you need to target a specific one. Casks are not supported.
+
 ## Occasionally asked questions
 
 - **Does Carafe install Homebrew if it is not already installed?**: No, Carafe assumes that Homebrew is already installed on the system. We recommend using the [official package from Github](https://github.com/Homebrew/brew/releases).
