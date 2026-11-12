@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/macadmins/carafe/brew"
@@ -12,11 +13,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var formulaRe = regexp.MustCompile(`^[A-Za-z0-9+@._-]{1,128}$`) //nolint:gochecknoglobals
-var version = "dev"                                               //nolint:gochecknoglobals
+// formulaRe matches a formula name, optionally qualified with its tap (user/repo/formula).
+// A tap-qualified name lets callers target a specific tap, e.g. homebrew/core/foo when
+// another tap provides a formula with the same name.
+var formulaRe = regexp.MustCompile( //nolint:gochecknoglobals
+	`^([A-Za-z0-9][A-Za-z0-9_-]{0,63}/[A-Za-z0-9][A-Za-z0-9_.-]{0,63}/)?[A-Za-z0-9+@._-]{1,128}$`,
+)
+var version = "dev" //nolint:gochecknoglobals
 
 func validateFormulaArg(arg string) error {
 	if !formulaRe.MatchString(arg) {
+		return fmt.Errorf("invalid formula name")
+	}
+	// Carafe manages formulae only; reject casks from the official cask taps.
+	if strings.HasPrefix(strings.ToLower(arg), "homebrew/cask") {
 		return fmt.Errorf("invalid formula name")
 	}
 	return nil
