@@ -26,6 +26,9 @@ func TestValidateFormulaArg_AllowsValid(t *testing.T) {
 		"someuser/sometap/foo",
 		"some-user/some_tap/libxml++",
 		"user/tap.name/foo",
+		"homebrew/caskify/foo", // not an official cask tap
+		"homebrew/caskroom/foo",
+		"someuser/cask/foo",
 	}
 	for _, v := range valid {
 		assert.NoError(t, validateFormulaArg(v))

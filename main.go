@@ -25,11 +25,20 @@ func validateFormulaArg(arg string) error {
 	if !formulaRe.MatchString(arg) {
 		return fmt.Errorf("invalid formula name")
 	}
-	// Carafe manages formulae only; reject casks from the official cask taps.
-	if strings.HasPrefix(strings.ToLower(arg), "homebrew/cask") {
+	if isOfficialCaskTap(arg) {
 		return fmt.Errorf("invalid formula name")
 	}
 	return nil
+}
+
+// isOfficialCaskTap reports whether a tap-qualified name belongs to one of the
+// official cask taps (homebrew/cask or homebrew/cask-*). Carafe manages formulae only.
+func isOfficialCaskTap(arg string) bool {
+	parts := strings.Split(strings.ToLower(arg), "/")
+	if len(parts) != 3 || parts[0] != "homebrew" {
+		return false
+	}
+	return parts[1] == "cask" || strings.HasPrefix(parts[1], "cask-")
 }
 
 func completionCommand() *cobra.Command {
