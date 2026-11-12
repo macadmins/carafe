@@ -24,6 +24,13 @@ jobs:
           VERSION=$(cat VERSION)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+      - name: Resolve changelog range
+        id: changelog_range
+        run: |
+          # The new release tag may not exist yet; exclude it for reruns too.
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude="v$VERSION" "$GITHUB_SHA")
+          echo "from_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Install Apple Xcode certificates
         uses: apple-actions/import-codesign-certs@8f3fb608891dd2244cdab3d69cd68c0d37a7fe93 # v2.0.0
         with:
@@ -47,6 +54,9 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@c9dc8369bccbc41e0ac887f8fd674f5925d315f7 # v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fromTag: ${{ steps.changelog_range.outputs.from_tag }}
+          toTag: ${{ github.sha }}
+          failOnError: true
           fetchViaCommits: true
           configurationJson: |
             {
