@@ -310,6 +310,43 @@ func TestGetVersion(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "old keg left on disk, linked keg is newer",
+			output:      `[{ "installed": [{ "version": "2.45.0" }, { "version": "2.52.0" }], "linked_keg": "2.52.0" }]`,
+			expected:    "2.52.0",
+			expectError: false,
+		},
+		{
+			name:        "keg-only formula with two kegs uses the newest",
+			output:      `[{ "installed": [{ "version": "3.4.0" }, { "version": "3.6.0" }], "linked_keg": null }]`,
+			expected:    "3.6.0",
+			expectError: false,
+		},
+		{
+			name:        "keg-only formula with stable and HEAD kegs uses the stable one",
+			output:      `[{ "installed": [{ "version": "3.6.0" }, { "version": "HEAD-1234567" }], "linked_keg": null }]`,
+			expected:    "3.6.0",
+			expectError: false,
+		},
+		{
+			// A linked HEAD keg cannot be compared; use the newest stable keg.
+			name:        "linked HEAD keg next to a stable keg uses the stable one",
+			output:      `[{ "installed": [{ "version": "1.0" }, { "version": "HEAD-1234567" }], "linked_keg": "HEAD-1234567" }]`,
+			expected:    "1.0",
+			expectError: false,
+		},
+		{
+			name:        "linked keg missing from installed falls back to the newest keg",
+			output:      `[{ "installed": [{ "version": "1.0" }], "linked_keg": "2.0" }]`,
+			expected:    "1.0",
+			expectError: false,
+		},
+		{
+			name:        "only a HEAD keg",
+			output:      `[{ "installed": [{ "version": "HEAD-1234567" }], "linked_keg": null }]`,
+			expected:    "HEAD-1234567",
+			expectError: false,
+		},
+		{
 			name:        "valid JSON without installed version",
 			output:      `[{ "installed": [] }]`,
 			expected:    "",

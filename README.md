@@ -26,6 +26,8 @@ Carafe can check whether a formula is installed and whether it meets a minimum v
 /opt/macadmins/bin/carafe check <formula> [--min-version=<version>] [--skip-not-installed]
 ```
 
+When several versions of a formula are installed, `check` uses the version in use: the linked keg, or for a keg-only formula the newest installed stable version. Older kegs left on disk are not checked; `brew cleanup` removes them.
+
 ### Caching
 
 When running many `check` commands in quick succession (e.g. from multiple Munki `installcheck_script` entries), Carafe caches the output of `brew info --json --installed` on disk for 60 seconds by default. This means only the first `check` call invokes Homebrew; all subsequent calls within the TTL window are served from the cache, significantly reducing the time for a full Munki check run.
