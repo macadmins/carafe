@@ -27,6 +27,10 @@ type MockOSFunc struct {
 	lookupErr   error
 	egid        int
 	lookupGroup *user.Group
+
+	// StatFunc, when set, answers Stat per path. Without it, Stat returns
+	// the same result for every path.
+	StatFunc func(name string) (os.FileInfo, error)
 }
 
 func (m *MockOSFunc) Getenv(key string) string {
@@ -34,6 +38,9 @@ func (m *MockOSFunc) Getenv(key string) string {
 }
 
 func (m *MockOSFunc) Stat(name string) (os.FileInfo, error) {
+	if m.StatFunc != nil {
+		return m.StatFunc(name)
+	}
 	return m.statResult, m.statErr
 }
 

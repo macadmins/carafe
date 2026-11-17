@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -151,15 +152,30 @@ func buildRootCmd(c exec.CarafeConfig, version string) *cobra.Command {
 		Short: "Check if the package is installed, and optionally at or above a specific version. Use --min-version to specify a minimum version. Use --munki-installcheck to reverse the exit codes.", //nolint:lll
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// main() prints the error once; cobra would print it a second time.
+			cmd.SilenceErrors = true
+			failCode := 1
+			if munkiInstallCheck {
+				failCode = 0
+			}
 			if err := validateFormulaArg(args[0]); err != nil {
-				return err
+				// A bad name is a configuration error. Under --munki-installcheck
+				// it must not read as "nothing to do".
+				return &exitCodeError{code: failCode, err: err}
 			}
 			if noCache {
 				cacheTTL = 0
 			}
 			exitCode, err := brew.Check(c, args[0], minVersion, munkiInstallCheck, skipNotInstalled, cacheTTL)
 			if err != nil {
-				return err
+				if !errors.Is(err, brew.ErrUsage) {
+					// The arguments are valid, so the usage text only hides the
+					// real error in the logs.
+					cmd.SilenceUsage = true
+				}
+				// A plain error exits 1, which --munki-installcheck reads as
+				// "nothing to do". Keep the failing code that Check chose.
+				return &exitCodeError{code: exitCode, err: err}
 			}
 			os.Exit(exitCode)
 			return nil
@@ -226,6 +242,26 @@ func main() {
 
 	if err := buildRootCmd(c, version).Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(exitCodeFor(err))
 	}
+}
+
+// exitCodeError is an error that also sets the process exit code.
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func (e *exitCodeError) Error() string { return e.err.Error() }
+
+func (e *exitCodeError) Unwrap() error { return e.err }
+
+// exitCodeFor returns the exit code for an error from a command:
+// the code an exitCodeError carries, else 1.
+func exitCodeFor(err error) int {
+	var ece *exitCodeError
+	if errors.As(err, &ece) {
+		return ece.code
+	}
+	return 1
 }
