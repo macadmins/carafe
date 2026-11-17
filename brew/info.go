@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 
@@ -21,6 +22,7 @@ func stripBrewRevision(v string) string {
 type HomebrewFormula struct {
 	Name      string      `json:"name"`
 	Installed []Installed `json:"installed"`
+	LinkedKeg string      `json:"linked_keg,omitempty"`
 }
 
 type Installed struct {
@@ -81,7 +83,33 @@ func getVersion(output string) (string, error) {
 	if len(info) == 0 || len(info[0].Installed) == 0 {
 		return "", nil
 	}
-	return info[0].Installed[0].Version, nil
+	// The linked keg is the version in use. Use it when it is a stable keg that
+	// brew lists as installed. Otherwise (a keg-only formula, a linked HEAD keg,
+	// or a link to a keg that is gone) use the newest stable keg: brew sorts
+	// "installed" from oldest to newest, and an old keg stays there until
+	// "brew cleanup" removes it. A HEAD version has no number to compare, so a
+	// HEAD keg is used only when no stable keg exists.
+	kegs := info[0].Installed
+	linked := info[0].LinkedKeg
+	if linked != "" && !isHeadVersion(linked) {
+		for _, k := range kegs {
+			if k.Version == linked {
+				return linked, nil
+			}
+		}
+	}
+	for i := len(kegs) - 1; i >= 0; i-- {
+		if !isHeadVersion(kegs[i].Version) {
+			return kegs[i].Version, nil
+		}
+	}
+	return kegs[len(kegs)-1].Version, nil
+}
+
+// isHeadVersion reports whether a keg version is a HEAD build, such as
+// "HEAD-1234567".
+func isHeadVersion(v string) bool {
+	return strings.HasPrefix(v, "HEAD")
 }
 
 func InstalledVersion(c exec.CarafeConfig, item string) (string, error) {

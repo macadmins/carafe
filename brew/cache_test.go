@@ -186,3 +186,20 @@ func TestCachePath(t *testing.T) {
 	assert.Equal(t, cacheFileArm64, cachePath("/opt/homebrew/bin/brew"))
 	assert.Equal(t, cacheFileX86_64, cachePath("/usr/local/bin/brew"))
 }
+
+// TestInfoOutputCached_KeepsLinkedKeg pins that the cached path keeps
+// linked_keg when it re-encodes a formula, so getVersion sees the version in
+// use and not the oldest keg.
+func TestInfoOutputCached_KeepsLinkedKeg(t *testing.T) {
+	cacheFile := filepath.Join(t.TempDir(), "cache.json")
+	data := `[{"name":"git","installed":[{"version":"2.45.0"},{"version":"2.52.0"}],"linked_keg":"2.52.0"}]`
+	require.NoError(t, os.WriteFile(cacheFile, []byte(data), 0600))
+
+	c := newTestConfig() // no outputs configured: brew must not be called
+	out, err := infoOutputCached(c, "git", cacheFile, 60*time.Second)
+	require.NoError(t, err)
+
+	v, err := getVersion(out)
+	require.NoError(t, err)
+	assert.Equal(t, "2.52.0", v)
+}
