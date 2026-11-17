@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-version"
 	"github.com/stretchr/testify/assert"
 
 	_ "embed"
@@ -570,5 +571,110 @@ func TestVersionMeetsOrExceedsMinimum(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
+	}
+}
+
+func TestCompareBrewVersions(t *testing.T) {
+	tests := []struct {
+		installed string
+		minimum   string
+		expected  bool
+	}{
+		// Plain versions and revisions keep working.
+		{"2.52.0", "2.52.0", true},
+		{"2.52.0_1", "2.52.0", true},
+		{"2.51.9", "2.52.0", false},
+		// A letter suffix is a later release, not a pre-release (openssh, openssl@1.1, tzdata style).
+		{"10.2p1", "10.2", true},
+		{"10.2p1", "10.2p1", true},
+		{"10.2p2", "10.2p1", true},
+		{"10.2p1", "10.2p2", false},
+		{"10.2p10", "10.2p9", true},
+		{"10.1p1", "10.2", false},
+		{"9.9p2", "10.0p1", false},
+		{"10.0p1", "9.9p2", true},
+		{"1.1.1w", "1.1.1", true},
+		{"1.1.1w", "1.1.1x", false},
+		{"2025b", "2025a", true},
+		{"2025a", "2025b", false},
+		{"10.2p1_1", "10.2p1", true},
+		{"1.0.2zk", "1.0.2u", true},
+		{"1.0b", "1.0", true},
+		// Other letters with a number are later releases, as in Homebrew.
+		{"4.5ga6", "4.5", true},
+		{"2.1c1", "2.1", true},
+		{"1.0.0dev1", "1.0.0", true},
+		{"1.0.0post1", "1.0.0", true},
+		{"3.1jupp41", "3.1", true},
+		// Suffix numbers of any length compare as numbers.
+		{"3.3.0p99999999999999999999", "3.3.0p99999999999999999998", true},
+		{"3.3.0p9", "3.3.0p10", false},
+		{"3.3.0p010", "3.3.0p9", true},
+		// Pre-release numbers compare as numbers, and pre-release kinds in
+		// Homebrew's order: alpha (a) < beta (b) < preview < pre < rc.
+		{"3.0.0rc10", "3.0.0rc9", true},
+		{"1.0beta10", "1.0beta9", true},
+		{"1.0b10", "1.0b9", true},
+		{"3.14.0a10", "3.14.0a9", true},
+		{"1.0a10", "1.0b1", false},
+		{"1.0a1", "1.0alpha1", true},
+		{"1.0alpha1", "1.0a1", true},
+		{"1.0pre1", "1.0preview1", true},
+		{"1.0preview1", "1.0pre1", false},
+		{"1.0rc1", "1.0pre9", true},
+		{"1.0rc", "1.0rc0", true},
+		{"1.0beta", "1.0beta1", false},
+		// A leading "v" or a "-" before the suffix does not change the order.
+		{"10.2p1", "v10.2p2", false},
+		{"10.2p2", "v10.2p2", true},
+		{"3.0.0rc9", "v3.0.0rc10", false},
+		{"1.0.0-rc3", "1.0.0rc2", true},
+		{"1.0.0rc1", "1.0.0-rc2", false},
+		{"1.0-p1", "1.0", true},
+		// Named pre-releases stay pre-releases.
+		{"1.0.0preview1", "1.0.0", false},
+		{"1.0.0pre", "1.0.0", false},
+		{"1.0.0b1", "1.0.0", false},
+		{"3.14.0a2", "3.14.0", false},
+		{"1.0.0b2", "1.0.0b1", true},
+		{"1.0.0", "1.0.0b1", true},
+		{"3.0.0rc1", "3.0.0", false},
+		{"3.0.0-rc1", "3.0.0", false},
+		{"3.0.0beta2", "3.0.0beta1", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.installed+">="+tt.minimum, func(t *testing.T) {
+			got, err := versionAtLeast(tt.installed, tt.minimum)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestCompareBrewVersionsInvalid(t *testing.T) {
+	_, err := versionAtLeast("HEAD-1234567", "1.0")
+	assert.Error(t, err)
+	// A revision in the minimum is not silently dropped.
+	_, err = versionAtLeast("2.50.1", "2.50.1_1")
+	assert.Error(t, err)
+	_, err = versionAtLeast("1.0", "not a version")
+	assert.Error(t, err)
+}
+
+// TestParseBrewVersionAcceptsSameAsGoVersion pins that parseBrewVersion accepts
+// exactly the strings that go-version accepts. A caller that validates a
+// minimum version with go-version can then rely on the comparison never
+// failing for a value that passed validation.
+func TestParseBrewVersionAcceptsSameAsGoVersion(t *testing.T) {
+	inputs := []string{
+		"1.0", "10.2p1", "1.1.1w", "2025b", "4.5ga6", "3.0.0rc10", "1.0b1", "1.0beta",
+		"1.0-rc1", "1.0-p1", "1.0P1", "v1.2.3", "v10.2p2", "v1.0-rc1", "1.0-a", "1.0--rc1", "v", "vv1.0", "1.2.3+meta", "3.3.0p99999999999999999999",
+		"", "v2.x", "HEAD-1234567", "2.50.1_1", "0.99.beta20", "r3222", "1..0", "1.0 p1", "1.0p1x",
+	}
+	for _, in := range inputs {
+		_, brewErr := parseBrewVersion(in)
+		_, goErr := version.NewVersion(in)
+		assert.Equal(t, goErr == nil, brewErr == nil, "input %q: go-version err=%v, parseBrewVersion err=%v", in, goErr, brewErr)
 	}
 }

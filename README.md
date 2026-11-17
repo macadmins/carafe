@@ -14,6 +14,8 @@ In addition to the basic Homebrew functionality, Carafe provides a few additiona
 
 You can specify a minimum version of a formula that should be installed. If the installed version is lower than the specified minimum version, Carafe will automatically upgrade it to the latest version.
 
+Versions are compared the way Homebrew orders them for a minimum version check. A revision suffix on the installed version (`2.52.0_1`) is ignored; `--min-version` itself cannot carry a revision. A letter suffix marks a later release, so `10.2` < `10.2p1` < `10.2p2` (openssh) and `1.1.1` < `1.1.1w` (openssl@1.1). `alpha`, `beta`, `preview`, `pre`, `rc`, and `a` or `b` followed by a number (`1.0.0b1`, `3.14.0a2`) are pre-releases, ranked in that order, and their numbers compare as numbers (`rc9` < `rc10`). A leading `v` and a `-` before the suffix are ignored (`v10.2p2`, `1.0-rc1`). Homebrew's own order is not transitive in a few mixed cases (for example `1.0rc` against `1.0c1`, or `1.0b` against `1.0b3`); carafe uses the order above there. One known difference: without a number Homebrew puts `1.0pre` before `1.0preview`, while carafe ranks `preview` before `pre` in every case. Upper-case suffixes keep the go-version rules.
+
 ```bash
 /opt/macadmins/bin/carafe update <formula> --min-version=<version>
 ```
