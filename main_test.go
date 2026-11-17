@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -128,4 +131,93 @@ func TestCheckCmd_CacheTTLFlag(t *testing.T) {
 			assert.NotContains(t, err.Error(), "invalid argument", "TTL %q should be valid", ttl)
 		}
 	}
+}
+
+func TestCheckCmd_SkipNotInstalledNeedsMinVersion(t *testing.T) {
+	// A bad flag combination is a configuration error. Under
+	// --munki-installcheck it must not read as "nothing to do" (1).
+	tests := []struct {
+		args     []string
+		expected int
+	}{
+		{[]string{"check", "--skip-not-installed", "--munki-installcheck", "git"}, 0},
+		{[]string{"check", "--skip-not-installed", "git"}, 1},
+	}
+	for _, tt := range tests {
+		cmd := buildRootCmd(newMockConfig(), "test")
+		cmd.SetArgs(tt.args)
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Equal(t, tt.expected, exitCodeFor(err), "args %v", tt.args)
+	}
+}
+
+func TestCheckCmd_InvalidFormulaNameExitCode(t *testing.T) {
+	tests := []struct {
+		args     []string
+		expected int
+	}{
+		{[]string{"check", "--munki-installcheck", "../git"}, 0},
+		{[]string{"check", "../git"}, 1},
+	}
+	for _, tt := range tests {
+		cmd := buildRootCmd(newMockConfig(), "test")
+		cmd.SetArgs(tt.args)
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Equal(t, tt.expected, exitCodeFor(err), "args %v", tt.args)
+	}
+}
+
+func TestCheckCmd_CheckErrorExitCode(t *testing.T) {
+	// The mock executor returns no output, so the brew info JSON cannot be
+	// parsed. Any runtime error takes the same exit-code path.
+	tests := []struct {
+		args     []string
+		expected int
+	}{
+		// Munki reads 0 as "install needed". An error must not read as compliant.
+		{[]string{"check", "--no-cache", "--munki-installcheck", "git"}, 0},
+		{[]string{"check", "--no-cache", "git"}, 1},
+	}
+	for _, tt := range tests {
+		cmd := buildRootCmd(newMockConfig(), "test")
+		cmd.SetArgs(tt.args)
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Equal(t, tt.expected, exitCodeFor(err), "args %v", tt.args)
+	}
+}
+
+func TestExitCodeFor(t *testing.T) {
+	assert.Equal(t, 1, exitCodeFor(errors.New("plain")))
+	assert.Equal(t, 0, exitCodeFor(&exitCodeError{code: 0, err: errors.New("x")}))
+	assert.Equal(t, 0, exitCodeFor(fmt.Errorf("wrapped: %w", &exitCodeError{code: 0, err: errors.New("x")})))
+}
+
+func TestCheckCmd_InvalidMinVersionIsUsageError(t *testing.T) {
+	var out bytes.Buffer
+	cmd := buildRootCmd(newMockConfig(), "test")
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"check", "--min-version=v2.x", "--skip-not-installed", "--munki-installcheck", "git"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	// A typo in a pkginfo must make the Munki item fail, not read as compliant.
+	assert.Equal(t, 0, exitCodeFor(err))
+	// Usage help is still shown for argument errors.
+	assert.Contains(t, out.String(), "Usage:")
+}
+
+func TestCheckCmd_RuntimeErrorHasNoUsage(t *testing.T) {
+	var out bytes.Buffer
+	cmd := buildRootCmd(newMockConfig(), "test")
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"check", "--no-cache", "--munki-installcheck", "git"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.NotContains(t, out.String(), "Usage:")
+	// main() prints the error; cobra must not print it a second time.
+	assert.NotContains(t, out.String(), "Error:")
 }

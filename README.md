@@ -51,6 +51,15 @@ Munki expects an exit code of 0 to indicate that installation is required, and 1
 /opt/macadmins/bin/carafe check <formula> [--min-version=<version>] [--skip-not-installed] --munki-installcheck
 ```
 
+If the check itself fails (for example, Homebrew returns an error, a tap is not trusted, the installed version cannot be parsed, such as a `HEAD-…` install, or an argument is invalid, such as a `--min-version` that is not a version), `carafe check --munki-installcheck` exits 0 instead of reporting the Mac as compliant. Munki then runs the item, and the item fails on every run until the cause is fixed, so the problem stays visible in Munki's reports. A `--min-version` with a Homebrew revision (`2.50.1_1`) is not accepted.
+
+Some cases still exit 1 with `--munki-installcheck`:
+- Homebrew is not installed at all.
+- No user is logged in at the console.
+- The command line itself cannot be parsed (an unknown flag, or a wrong number of arguments).
+
+With `--skip-not-installed`, a formula that Homebrew does not know (a typo, one removed from its tap, or one from a tap that is not tapped) counts as not installed, unless a keg for it is still in the Cellar. A formula file that exists but cannot be loaded is an error.
+
 ## Other supported brew commands
 
 These commands support the same options as the `brew` command. The commands are:
